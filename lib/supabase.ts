@@ -14,9 +14,26 @@ function getSupabase(): SupabaseClient {
   if (!supabaseUrl || !supabaseAnonKey) {
     // Ne pas lancer d'erreur lors du build - retourner un objet qui lancera l'erreur lors de l'utilisation
     // Cela permet au build de réussir même si les variables ne sont pas définies
+    console.error('❌ Variables d\'environnement Supabase manquantes:')
+    console.error('   - NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? '✓' : '✗')
+    console.error('   - NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✓' : '✗')
+    console.error('📝 Pour configurer dans Vercel:')
+    console.error('   1. Allez dans votre projet Vercel')
+    console.error('   2. Settings > Environment Variables')
+    console.error('   3. Ajoutez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    console.error('   4. Redéployez l\'application')
+    
     return new Proxy({} as SupabaseClient, {
-      get() {
-        throw new Error('Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required. Please configure them in Vercel environment variables.')
+      get(_target, prop) {
+        // Ne pas lancer d'erreur pour certaines propriétés qui sont souvent vérifiées
+        if (prop === 'auth') {
+          return new Proxy({}, {
+            get() {
+              throw new Error('Supabase n\'est pas configuré. Veuillez configurer NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans les variables d\'environnement Vercel.')
+            }
+          })
+        }
+        throw new Error('Supabase n\'est pas configuré. Veuillez configurer NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans les variables d\'environnement Vercel.')
       }
     }) as SupabaseClient
   }
