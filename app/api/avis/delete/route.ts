@@ -5,9 +5,14 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function DELETE(req: Request) {
   try {
+    if (!req.url) {
+      return NextResponse.json({ error: 'URL invalide' }, { status: 400 })
+    }
+    
     const { searchParams } = new URL(req.url)
     const avisId = searchParams.get('id')
     const deleteAll = searchParams.get('all') === 'true'
