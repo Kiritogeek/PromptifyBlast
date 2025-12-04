@@ -14,29 +14,150 @@ export default function PricingPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Timeout de sécurité pour éviter le blocage infini
-    const timeoutId = setTimeout(() => {
-      console.warn('[PRICING] Timeout de vérification, arrêt du chargement')
-      setIsChecking(false)
-    }, 10000) // 10 secondes maximum
+    let isMounted = true
+    let timeoutId: NodeJS.Timeout | null = null
+    let subscription: { unsubscribe: () => void } | null = null
+
+    // Fonction pour arrêter le chargement de manière sécurisée
+    const stopChecking = () => {
+      if (isMounted) {
+        setIsChecking(false)
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+      }
+    }
+
+    // Timeout de sécurité réduit à 2 secondes pour éviter le blocage
+    timeoutId = setTimeout(() => {
+      console.warn('[PRICING] Timeout de vérification (2s), arrêt du chargement')
+      stopChecking()
+      if (isMounted) {
+        setUser(null)
+        setIsPremium(false)
+      }
+    }, 2000) // 2 secondes maximum
 
     // Vérifier si l'utilisateur est connecté et son statut premium
     const checkAuth = async () => {
+      // Wrapper toute la logique dans un try-catch global pour capturer toutes les erreurs
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        // Vérifier si Supabase est disponible en testant une propriété simple
+        // Si Supabase n'est pas configuré, le Proxy lancera une erreur synchrone
+        let supabaseAvailable = false
+        try {
+          // Tester si supabase.auth existe - cela peut lancer une erreur si non configuré
+          const testAuth = supabase.auth
+          if (testAuth && typeof testAuth === 'object') {
+            supabaseAvailable = true
+          }
+        } catch (e: any) {
+          // Supabase n'est pas configuré, le Proxy a lancé une erreur
+          console.warn('[PRICING] Supabase non configuré:', e?.message || 'Variables d\'environnement manquantes')
+          stopChecking()
+          if (isMounted) {
+            setUser(null)
+            setIsPremium(false)
+          }
+          return
+        }
+
+        if (!supabaseAvailable) {
+          console.warn('[PRICING] Supabase non disponible, affichage de la page sans authentification')
+          stopChecking()
+          return
+        }
+
+        // Essayer de récupérer la session avec un timeout
+        let session = null
         
-        if (sessionError) {
-          console.error('[PRICING] Erreur lors de la récupération de la session:', sessionError)
-          setUser(null)
-          setIsPremium(false)
-          setIsChecking(false)
-          clearTimeout(timeoutId)
+        try {
+          const sessionPromise = supabase.auth.getSession()
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 1500)
+          )
+          
+          const result = await Promise.race([sessionPromise, timeoutPromise]) as any
+          
+          if (result?.data?.session) {
+            session = result.data.session
+          }
+        } catch (error: any) {
+          // Erreur normale si Supabase n'est pas configuré ou timeout
+          console.warn('[PRICING] Impossible de récupérer la session:', error?.message || 'Timeout')
+        }
+        
+        if (!isMounted) {
+          stopChecking()
           return
         }
 
         setUser(session?.user ?? null)
 
         // Si l'utilisateur est connecté, vérifier son statut premium
+        if (session?.user) {
+          try {
+            const profilePromise = supabase
+              .from('profiles')
+              .select('is_premium')
+              .eq('id', session.user.id)
+              .single()
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 1000)
+            )
+            
+            const profileResult = await Promise.race([profilePromise, timeoutPromise]) as any
+
+            if (!isMounted) {
+              stopChecking()
+              return
+            }
+
+            if (profileResult?.error) {
+              console.warn('[PRICING] Erreur profil:', profileResult.error)
+              setIsPremium(false)
+            } else {
+              setIsPremium(profileResult?.data?.is_premium || false)
+            }
+          } catch (error: any) {
+            console.warn('[PRICING] Erreur vérification premium:', error?.message || error)
+            setIsPremium(false)
+          }
+        } else {
+          setIsPremium(false)
+        }
+      } catch (error: any) {
+        console.error('[PRICING] Erreur générale:', error?.message || error)
+        if (isMounted) {
+          setUser(null)
+          setIsPremium(false)
+        }
+      } finally {
+        stopChecking()
+      }
+    }
+
+    // Démarrer la vérification dans un wrapper sécurisé
+    Promise.resolve()
+      .then(() => checkAuth())
+      .catch((error) => {
+        console.error('[PRICING] Erreur fatale lors de la vérification:', error)
+        stopChecking()
+        if (isMounted) {
+          setUser(null)
+          setIsPremium(false)
+        }
+      })
+
+    // Écouter les changements d'authentification (seulement si Supabase fonctionne)
+    try {
+      const authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (!isMounted) return
+        
+        setUser(session?.user ?? null)
+
         if (session?.user) {
           try {
             const { data: profile, error: profileError } = await supabase
@@ -46,62 +167,29 @@ export default function PricingPage() {
               .single()
 
             if (profileError) {
-              console.error('[PRICING] Erreur lors de la récupération du profil:', profileError)
-              // Ne pas bloquer l'utilisateur, continuer avec isPremium = false
+              console.warn('[PRICING] Erreur profil:', profileError)
               setIsPremium(false)
             } else {
               setIsPremium(profile?.is_premium || false)
             }
           } catch (error) {
-            console.error('[PRICING] Erreur lors de la vérification du statut premium:', error)
+            console.warn('[PRICING] Erreur premium:', error)
             setIsPremium(false)
           }
         } else {
           setIsPremium(false)
         }
-      } catch (error) {
-        console.error('[PRICING] Erreur lors de la vérification de l\'authentification:', error)
-        setUser(null)
-        setIsPremium(false)
-      } finally {
-        setIsChecking(false)
-        clearTimeout(timeoutId)
-      }
+      })
+      
+      subscription = authSubscription.data
+    } catch (error) {
+      console.warn('[PRICING] Impossible de s\'abonner aux changements:', error)
     }
 
-    checkAuth()
-
-    // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
-
-      // Mettre à jour le statut premium si l'utilisateur est connecté
-      if (session?.user) {
-        try {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('is_premium')
-            .eq('id', session.user.id)
-            .single()
-
-          if (profileError) {
-            console.error('[PRICING] Erreur lors de la mise à jour du profil:', profileError)
-            setIsPremium(false)
-          } else {
-            setIsPremium(profile?.is_premium || false)
-          }
-        } catch (error) {
-          console.error('[PRICING] Erreur lors de la mise à jour du statut premium:', error)
-          setIsPremium(false)
-        }
-      } else {
-        setIsPremium(false)
-      }
-    })
-
     return () => {
-      subscription.unsubscribe()
-      clearTimeout(timeoutId)
+      isMounted = false
+      if (timeoutId) clearTimeout(timeoutId)
+      if (subscription) subscription.unsubscribe()
     }
   }, [])
 
