@@ -10,25 +10,82 @@ export default function Header() {
   const router = useRouter()
 
   useEffect(() => {
+    let subscription: { unsubscribe: () => void } | null = null
+
     // Vérifier si l'utilisateur est connecté
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-    })
+    try {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+      }).catch((error) => {
+        console.warn('[HEADER] Erreur lors de la récupération de la session:', error)
+        setUser(null)
+      })
 
-    // Écouter les changements d'authentification
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+      // Écouter les changements d'authentification
+      try {
+        const {
+          data: { subscription: authSubscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null)
+        })
+        subscription = authSubscription
+      } catch (error) {
+        console.warn('[HEADER] Impossible de s\'abonner aux changements d\'authentification:', error)
+      }
+    } catch (error) {
+      console.warn('[HEADER] Erreur lors de l\'initialisation de Supabase:', error)
+      setUser(null)
+    }
 
-    return () => subscription.unsubscribe()
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
   }, [])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
+    try {
+      // Nettoyer le localStorage avant la déconnexion
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('premium_status')
+        localStorage.removeItem('premium_user_id')
+        localStorage.removeItem('premium_cache_time')
+      }
+
+      // Essayer de se déconnecter via Supabase
+      try {
+        const { error } = await supabase.auth.signOut()
+        if (error) {
+          console.error('[HEADER] Erreur lors de la déconnexion:', error)
+          // Continuer quand même avec la redirection
+        }
+      } catch (supabaseError: any) {
+        console.error('[HEADER] Erreur Supabase lors de la déconnexion:', supabaseError)
+        // Si Supabase n'est pas disponible, continuer quand même
+      }
+
+      // Mettre à jour l'état local immédiatement
+      setUser(null)
+
+      // Utiliser window.location pour forcer un rechargement complet en production
+      // Cela garantit que tous les cookies et états sont nettoyés
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      } else {
+        router.push('/')
+        router.refresh()
+      }
+    } catch (error: any) {
+      console.error('[HEADER] Erreur lors de la déconnexion:', error)
+      // En cas d'erreur, forcer quand même la redirection
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      } else {
+        router.push('/')
+        router.refresh()
+      }
+    }
   }
 
   return (
