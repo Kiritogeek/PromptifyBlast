@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 
 export default function Header() {
   const [user, setUser] = useState<any>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -188,39 +189,41 @@ export default function Header() {
     <header className="border-b border-gray-800 bg-gray-900">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-white" aria-label="PromptifyBlast - Accueil">
+          <Link href="/" className="text-xl sm:text-2xl font-bold text-white" aria-label="PromptifyBlast - Accueil">
             PromptifyBlast
           </Link>
-          <nav className="flex items-center gap-6" aria-label="Navigation principale">
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-4 lg:gap-6" aria-label="Navigation principale">
             <Link 
               href="/app" 
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-gray-300 hover:text-white transition-colors text-sm lg:text-base"
               aria-label="Accéder au générateur de prompts"
             >
               Générateur
             </Link>
             <Link 
               href="/pricing" 
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-gray-300 hover:text-white transition-colors text-sm lg:text-base"
               aria-label="Voir les tarifs Premium"
             >
               Premium
             </Link>
             <Link 
               href="/avis" 
-              className="text-gray-300 hover:text-white transition-colors"
+              className="text-gray-300 hover:text-white transition-colors text-sm lg:text-base"
               aria-label="Voir les avis utilisateurs"
             >
               Avis
             </Link>
             {user ? (
-              <div className="flex items-center gap-4">
-                <span className="text-gray-300 text-sm hidden md:block">
+              <div className="flex items-center gap-3 lg:gap-4">
+                <span className="text-gray-300 text-xs lg:text-sm hidden lg:block max-w-[150px] truncate">
                   {user.email}
                 </span>
                 <button
                   onClick={handleSignOut}
-                  className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                  className="px-3 py-1.5 lg:px-4 lg:py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors text-xs lg:text-sm"
                 >
                   Déconnexion
                 </button>
@@ -228,13 +231,87 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                className="px-3 py-1.5 lg:px-4 lg:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs lg:text-sm font-semibold"
               >
                 Connexion
               </Link>
             )}
           </nav>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden text-gray-300 hover:text-white transition-colors p-2"
+            aria-label="Menu"
+            aria-expanded={isMenuOpen}
+          >
+            {isMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <nav className="md:hidden mt-4 pb-4 border-t border-gray-800 pt-4" aria-label="Navigation mobile">
+            <div className="flex flex-col gap-4">
+              <Link 
+                href="/app" 
+                onClick={() => setIsMenuOpen(false)}
+                className="text-gray-300 hover:text-white transition-colors py-2"
+                aria-label="Accéder au générateur de prompts"
+              >
+                Générateur
+              </Link>
+              <Link 
+                href="/pricing" 
+                onClick={() => setIsMenuOpen(false)}
+                className="text-gray-300 hover:text-white transition-colors py-2"
+                aria-label="Voir les tarifs Premium"
+              >
+                Premium
+              </Link>
+              <Link 
+                href="/avis" 
+                onClick={() => setIsMenuOpen(false)}
+                className="text-gray-300 hover:text-white transition-colors py-2"
+                aria-label="Voir les avis utilisateurs"
+              >
+                Avis
+              </Link>
+              {user ? (
+                <div className="flex flex-col gap-3 pt-2 border-t border-gray-800">
+                  <span className="text-gray-300 text-sm truncate">
+                    {user.email}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false)
+                      handleSignOut()
+                    }}
+                    className="w-full px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors text-sm text-left"
+                  >
+                    Déconnexion
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold text-center"
+                >
+                  Connexion
+                </Link>
+              )}
+            </div>
+          </nav>
+        )}
       </div>
     </header>
   )

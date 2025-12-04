@@ -478,8 +478,8 @@ export default function AppPage() {
     <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 py-12">
       {/* Notification de succès */}
       {showSuccess && (
-        <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
-          <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-green-400">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 animate-slide-in">
+          <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-2xl flex items-center gap-3 w-full sm:w-auto sm:min-w-[320px] border border-green-400">
             <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -495,8 +495,8 @@ export default function AppPage() {
 
       {/* Notification d'erreur - Limite atteinte */}
       {showLimitError && (
-        <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
-          <div className="bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-red-400">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 animate-slide-in">
+          <div className="bg-gradient-to-r from-red-600 to-red-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-2xl flex items-center gap-3 w-full sm:w-auto sm:min-w-[320px] border border-red-400">
             <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -510,20 +510,20 @@ export default function AppPage() {
         </div>
       )}
       
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Main Card */}
-          <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 mb-8 border border-gray-700/50">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-white mb-2">
+          <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border border-gray-700/50">
+            <div className="text-center mb-6 sm:mb-8">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">
                 Générateur de Prompts IA
               </h1>
-              <p className="text-gray-300 mb-4 text-lg">
+              <p className="text-gray-300 mb-4 text-sm sm:text-base lg:text-lg px-2">
                 Entrez votre idée et choisissez un mode pour générer un prompt optimisé
               </p>
               <h2 className="sr-only">Modes de génération disponibles</h2>
-              <div className="bg-blue-900/20 backdrop-blur-sm border border-blue-700/50 rounded-xl p-4 mb-4 max-w-2xl mx-auto shadow-lg">
-                <p className="text-sm text-blue-200 font-medium">
+              <div className="bg-blue-900/20 backdrop-blur-sm border border-blue-700/50 rounded-xl p-3 sm:p-4 mb-4 max-w-2xl mx-auto shadow-lg">
+                <p className="text-xs sm:text-sm text-blue-200 font-medium">
                   💡 Plus votre prompt initial est précis, plus la réponse sera précise également
                 </p>
               </div>
@@ -606,7 +606,7 @@ export default function AppPage() {
               <h2 id="mode-title" className="block text-sm font-medium text-gray-300 mb-2">
                 Mode de génération
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div className="relative">
                   <button
                     onClick={() => handleModeChange('basic')}
@@ -685,7 +685,7 @@ export default function AppPage() {
               <h2 id="target-model-title" className="block text-sm font-medium text-gray-300 mb-2">
                 Modèle Cible
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <button
                   onClick={() => handleTargetModelChange(targetModel === 'chatgpt' ? null : 'chatgpt')}
                   disabled={isChecking ? false : !hasPremium}
@@ -756,14 +756,14 @@ export default function AppPage() {
             {/* Compteur de générations pour utilisateurs gratuits */}
             {/* Section Générations gratuites - Toujours afficher si non-premium, même si isChecking */}
             {!hasPremium && (
-              <div className={`mb-6 p-5 rounded-xl border backdrop-blur-sm shadow-lg ${
+              <div className={`mb-6 p-4 sm:p-5 rounded-xl border backdrop-blur-sm shadow-lg ${
                 remaining === 0 
                   ? 'bg-red-900/20 border-red-600/50' 
                   : 'bg-gray-700/80 border-gray-600/50'
               }`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-sm mb-1 ${
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <p className={`text-xs sm:text-sm mb-1 ${
                       remaining === 0 
                         ? 'text-red-300' 
                         : 'text-gray-300'
@@ -771,12 +771,12 @@ export default function AppPage() {
                       Générations gratuites aujourd'hui
                     </p>
                     {isChecking ? (
-                      <p className="text-2xl font-bold text-gray-400">
+                      <p className="text-xl sm:text-2xl font-bold text-gray-400">
                         Chargement...
                       </p>
                     ) : (
                       <>
-                        <p className={`text-2xl font-bold ${
+                        <p className={`text-xl sm:text-2xl font-bold ${
                           remaining === 0 
                             ? 'text-red-400' 
                             : 'text-white'
@@ -793,10 +793,10 @@ export default function AppPage() {
                       </>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Link
                       href="/pricing"
-                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all text-sm font-semibold shadow-md hover:shadow-lg"
+                      className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all text-xs sm:text-sm font-semibold shadow-md hover:shadow-lg text-center"
                     >
                       Passer au Premium
                     </Link>
@@ -828,7 +828,7 @@ export default function AppPage() {
             <button
               onClick={handleGenerate}
               disabled={isLoading || !inputText.trim()}
-              className="w-full bg-blue-600 text-white px-6 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white px-6 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Génération en cours...' : 'Générer le prompt'}
             </button>

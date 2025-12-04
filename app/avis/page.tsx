@@ -348,16 +348,16 @@ export default function AvisPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 py-12">
-      <div className="container mx-auto px-4">
+    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 py-6 sm:py-12">
+      <div className="container mx-auto px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white mb-4">
+          <div className="text-center mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 px-2">
               Aidez-nous à améliorer PromptifyBlast !
             </h1>
             <h2 className="sr-only">Formulaire d'avis</h2>
-            <p className="text-gray-300 text-lg">
+            <p className="text-gray-300 text-sm sm:text-base lg:text-lg px-2">
               Votre avis est précieux pour nous permettre d'améliorer continuellement notre service.
             </p>
           </div>
@@ -368,7 +368,7 @@ export default function AvisPage() {
               <div className="bg-gray-800/90 backdrop-blur-sm rounded-xl p-1 border border-gray-700/50 inline-flex">
                 <button
                   onClick={() => setViewMode('form')}
-                  className={`px-6 py-2 rounded-lg transition-all ${
+                  className={`px-4 sm:px-6 py-2 rounded-lg transition-all text-sm sm:text-base ${
                     viewMode === 'form'
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-300 hover:text-white'
@@ -378,7 +378,7 @@ export default function AvisPage() {
                 </button>
                 <button
                   onClick={() => setViewMode('admin')}
-                  className={`px-6 py-2 rounded-lg transition-all ${
+                  className={`px-4 sm:px-6 py-2 rounded-lg transition-all text-sm sm:text-base ${
                     viewMode === 'admin'
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-300 hover:text-white'
@@ -392,8 +392,8 @@ export default function AvisPage() {
 
           {/* Success Notification */}
           {showSuccess && (
-            <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
-              <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-green-400">
+            <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 animate-slide-in">
+              <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-2xl flex items-center gap-3 w-full sm:w-auto sm:min-w-[320px] border border-green-400">
                 <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -409,8 +409,8 @@ export default function AvisPage() {
 
           {/* Form View */}
           {viewMode === 'form' && (
-            <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-gray-700/50">
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 border border-gray-700/50">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 {/* Avis Textarea */}
                 <div>
                   <label htmlFor="avis" className="block text-sm font-medium text-gray-300 mb-2">
@@ -447,7 +447,7 @@ export default function AvisPage() {
                   <label htmlFor="tag" className="block text-sm font-medium text-gray-300 mb-2">
                     Tag (optionnel, 1 maximum, max 15 caractères)
                   </label>
-                  <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       id="tag"
                       type="text"
@@ -465,7 +465,7 @@ export default function AvisPage() {
                       <button
                         type="button"
                         onClick={handleDeleteTag}
-                        className="px-4 py-3 bg-red-600/80 text-white rounded-xl hover:bg-red-600 transition-all text-sm font-medium"
+                        className="px-4 py-3 bg-red-600/80 text-white rounded-xl hover:bg-red-600 transition-all text-sm font-medium whitespace-nowrap"
                       >
                         Supprimer le tag
                       </button>
@@ -491,7 +491,7 @@ export default function AvisPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !avis.trim()}
-                  className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl font-semibold text-lg hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                  className="w-full bg-blue-600 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:bg-blue-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Envoi en cours...' : 'Envoyer mon avis'}
                 </button>
@@ -501,13 +501,13 @@ export default function AvisPage() {
 
           {/* Admin View */}
           {viewMode === 'admin' && isAdmin && (
-            <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-gray-700/50">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                <h1 className="text-2xl font-bold text-white mb-2">
+            <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 border border-gray-700/50">
+              <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">
                   Avis Utilisateurs
                 </h1>
-                  <p className="text-gray-400 text-sm">
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     Liste de tous les avis envoyés par les utilisateurs
                   </p>
                 </div>
@@ -515,7 +515,7 @@ export default function AvisPage() {
                   <button
                     onClick={handleDeleteAllAvis}
                     disabled={isDeletingAll}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium"
+                    className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-sm font-medium"
                   >
                     {isDeletingAll ? 'Suppression...' : 'Supprimer tout'}
                   </button>
@@ -537,16 +537,16 @@ export default function AvisPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {allAvis.map((item) => (
                     <div
                       key={item.id}
-                      className="bg-gray-700/50 rounded-xl p-6 border border-gray-600/50"
+                      className="bg-gray-700/50 rounded-xl p-4 sm:p-6 border border-gray-600/50"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 w-full">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {item.isPremium && (
                                 <span className="px-2 py-1 bg-yellow-600/80 text-yellow-100 text-xs rounded-full font-semibold">
                                   Premium
@@ -561,12 +561,12 @@ export default function AvisPage() {
                             <button
                               onClick={() => handleDeleteAvis(item.id)}
                               disabled={deletingId === item.id}
-                              className="px-3 py-1.5 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-xs font-medium"
+                              className="px-3 py-1.5 bg-red-600/80 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed text-xs font-medium whitespace-nowrap"
                             >
                               {deletingId === item.id ? 'Suppression...' : 'Supprimer'}
                             </button>
                           </div>
-                          <p className="text-gray-300 text-sm mb-2">
+                          <p className="text-gray-300 text-sm mb-2 break-words">
                             {item.content}
                           </p>
                           <p className="text-gray-500 text-xs">

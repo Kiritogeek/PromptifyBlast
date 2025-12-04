@@ -279,61 +279,61 @@ export default function PricingPage() {
   // Afficher la page même si non connecté (avec message)
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 py-12">
-      <div className="container mx-auto px-4">
+    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 py-6 sm:py-12">
+      <div className="container mx-auto px-4 sm:px-6">
         <div className="max-w-2xl mx-auto">
           {/* Premium Plan - Centré */}
-          <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border-2 border-blue-600/70">
+          <div className="bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 border-2 border-blue-600/70">
             <div className="text-center mb-6">
-              <div className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-full text-sm font-semibold mb-2 shadow-lg">
+              <div className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-semibold mb-2 shadow-lg">
                 RECOMMANDÉ
               </div>
-              <h1 className="text-2xl font-bold text-white mb-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">
                 Premium
               </h1>
-              <div className="text-5xl font-bold text-white mb-2">
+              <div className="text-4xl sm:text-5xl font-bold text-white mb-2">
                 5€
               </div>
-              <p className="text-gray-300">
+              <p className="text-sm sm:text-base text-gray-300">
                 Accès complet à vie
               </p>
             </div>
 
-            <ul className="space-y-3 mb-8">
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Générations illimitées
+            <ul className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Générations illimitées</span>
               </li>
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Mode Basique disponible
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Mode Basique disponible</span>
               </li>
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Mode Pro débloqué
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Mode Pro débloqué</span>
               </li>
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Mode Ultra-Optimisé débloqué
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Mode Ultra-Optimisé débloqué</span>
               </li>
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Sélection du Modèle Cible (ChatGPT, Gemini, Grok)
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Sélection du Modèle Cible (ChatGPT, Gemini, Grok)</span>
               </li>
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Requêtes prioritaires
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Requêtes prioritaires</span>
               </li>
-              <li className="flex items-center text-gray-300">
-                <span className="text-green-500 mr-2">✓</span>
-                Mises à jour futures incluses
+              <li className="flex items-start sm:items-center text-gray-300 text-sm sm:text-base">
+                <span className="text-green-500 mr-2 flex-shrink-0">✓</span>
+                <span>Mises à jour futures incluses</span>
               </li>
             </ul>
 
             {error && (
-              <div className="mb-4 p-4 bg-red-900/50 border border-red-600 rounded-lg">
-                <p className="text-red-200 text-sm font-semibold mb-1">Erreur</p>
-                <p className="text-red-300 text-sm">{error}</p>
+              <div className="mb-4 p-3 sm:p-4 bg-red-900/50 border border-red-600 rounded-lg">
+                <p className="text-red-200 text-xs sm:text-sm font-semibold mb-1">Erreur</p>
+                <p className="text-red-300 text-xs sm:text-sm">{error}</p>
                 {error.includes('price_') && (
                   <p className="text-red-200 text-xs mt-2">
                     💡 Vérifiez que votre STRIPE_PRICE_ID dans .env.local commence bien par "price_" et redémarrez le serveur.
@@ -342,7 +342,7 @@ export default function PricingPage() {
                 {error.includes('connecté') && (
                   <Link
                     href="/login?redirect=/pricing"
-                    className="text-blue-400 hover:text-blue-300 underline text-sm mt-2 inline-block"
+                    className="text-blue-400 hover:text-blue-300 underline text-xs sm:text-sm mt-2 inline-block"
                   >
                     Se connecter maintenant →
                   </Link>
@@ -353,14 +353,14 @@ export default function PricingPage() {
             {isPremium ? (
               <button
                 disabled
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-xl font-semibold text-lg cursor-not-allowed opacity-90 shadow-lg"
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg cursor-not-allowed opacity-90 shadow-lg"
               >
                 Premium ✓
               </button>
             ) : !user ? (
               <Link
                 href="/login?redirect=/pricing"
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
               >
                 Connectez-vous pour passer Premium
               </Link>
@@ -368,13 +368,13 @@ export default function PricingPage() {
               <button
                 onClick={handleBuy}
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:hover:scale-100"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:hover:scale-100"
               >
                 {isLoading ? 'Redirection vers Stripe...' : 'Acheter Premium – 5€'}
               </button>
             )}
 
-              <p className="text-center text-sm text-gray-400 mt-4">
+              <p className="text-center text-xs sm:text-sm text-gray-400 mt-4">
                 Paiement sécurisé via Stripe
               </p>
           </div>

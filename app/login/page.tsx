@@ -210,8 +210,8 @@ function LoginForm() {
     <main className="min-h-screen bg-gray-900 py-12">
       {/* Notification de succès - Connexion et Inscription */}
       {showSuccess && (
-        <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
-          <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-green-400">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-50 animate-slide-in">
+          <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 sm:px-6 py-3 sm:py-4 rounded-lg shadow-2xl flex items-center gap-3 w-full sm:w-auto sm:min-w-[320px] border border-green-400">
             <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -227,17 +227,17 @@ function LoginForm() {
         </div>
       )}
 
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 sm:px-6">
         <div className="max-w-md mx-auto">
-          <div className="bg-gray-800 rounded-lg shadow-lg p-8 border border-gray-700">
-            <div className="text-center mb-8">
-              <Link href="/" className="text-3xl font-bold text-white mb-2 block">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8 border border-gray-700">
+            <div className="text-center mb-6 sm:mb-8">
+              <Link href="/" className="text-2xl sm:text-3xl font-bold text-white mb-2 block">
                 PromptifyBlast
               </Link>
-              <h1 className="text-2xl font-bold text-white mb-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">
                 {isSignUp ? 'Créer un compte' : 'Se connecter'}
               </h1>
-              <p className="text-gray-400">
+              <p className="text-sm sm:text-base text-gray-400">
                 {isSignUp 
                   ? 'Rejoignez PromptifyBlast pour générer des prompts optimisés'
                   : 'Accédez à votre compte'
