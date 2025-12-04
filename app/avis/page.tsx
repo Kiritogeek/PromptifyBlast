@@ -461,7 +461,7 @@ export default function AvisPage() {
                       placeholder="Ex: Bug, Suggestion..."
                       className="flex-1 px-4 py-3 bg-gray-700/80 backdrop-blur-sm text-white border border-gray-600/50 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-gray-700 placeholder-gray-400 shadow-inner transition-all"
                     />
-                    {userTag && (
+                    {tag.trim() && (
                       <button
                         type="button"
                         onClick={handleDeleteTag}
