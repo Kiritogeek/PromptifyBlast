@@ -30,13 +30,13 @@ export default function PricingPage() {
     }
 
     // Timeout de sécurité réduit à 2 secondes pour éviter le blocage
+    // ⚠️ IMPORTANT : Ne pas mettre setUser(null) ici car cela déconnecte l'utilisateur
+    // Si la vérification prend trop de temps, on affiche juste la page sans bloquer
     timeoutId = setTimeout(() => {
       console.warn('[PRICING] Timeout de vérification (2s), arrêt du chargement')
       stopChecking()
-      if (isMounted) {
-        setUser(null)
-        setIsPremium(false)
-      }
+      // Ne pas mettre setUser(null) ici - laisser l'utilisateur connecté si la session existe
+      // setIsPremium(false) est déjà géré par défaut dans le code
     }, 2000) // 2 secondes maximum
 
     // Vérifier si l'utilisateur est connecté et son statut premium
@@ -56,8 +56,9 @@ export default function PricingPage() {
           // Supabase n'est pas configuré, le Proxy a lancé une erreur
           console.warn('[PRICING] Supabase non configuré:', e?.message || 'Variables d\'environnement manquantes')
           stopChecking()
+          // ⚠️ Ne pas mettre setUser(null) ici - ne pas déconnecter l'utilisateur
+          // L'utilisateur peut être connecté même si Supabase a un problème temporaire
           if (isMounted) {
-            setUser(null)
             setIsPremium(false)
           }
           return
@@ -130,8 +131,9 @@ export default function PricingPage() {
         }
       } catch (error: any) {
         console.error('[PRICING] Erreur générale:', error?.message || error)
+        // ⚠️ Ne pas mettre setUser(null) ici - ne pas déconnecter l'utilisateur en cas d'erreur
+        // L'utilisateur peut être connecté même si la vérification échoue
         if (isMounted) {
-          setUser(null)
           setIsPremium(false)
         }
       } finally {
@@ -145,8 +147,9 @@ export default function PricingPage() {
       .catch((error) => {
         console.error('[PRICING] Erreur fatale lors de la vérification:', error)
         stopChecking()
+        // ⚠️ Ne pas mettre setUser(null) ici - ne pas déconnecter l'utilisateur
+        // L'utilisateur peut être connecté même si la vérification échoue complètement
         if (isMounted) {
-          setUser(null)
           setIsPremium(false)
         }
       })

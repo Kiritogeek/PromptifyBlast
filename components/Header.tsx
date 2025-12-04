@@ -15,10 +15,13 @@ export default function Header() {
     // Vérifier si l'utilisateur est connecté
     try {
       supabase.auth.getSession().then(({ data: { session } }) => {
+        // Mettre à jour l'état seulement si on a une réponse valide
         setUser(session?.user ?? null)
       }).catch((error) => {
         console.warn('[HEADER] Erreur lors de la récupération de la session:', error)
-        setUser(null)
+        // ⚠️ Ne pas mettre setUser(null) ici - ne pas déconnecter l'utilisateur en cas d'erreur
+        // L'utilisateur peut être connecté même si la récupération de session échoue temporairement
+        // La session sera mise à jour via onAuthStateChange si nécessaire
       })
 
       // Écouter les changements d'authentification
