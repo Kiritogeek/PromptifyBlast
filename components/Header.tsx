@@ -49,32 +49,61 @@ export default function Header() {
 
   const handleSignOut = async () => {
     try {
-      // Nettoyer le localStorage avant la déconnexion
+      // Nettoyer le localStorage AVANT la déconnexion
       if (typeof window !== 'undefined') {
         localStorage.removeItem('premium_status')
         localStorage.removeItem('premium_user_id')
         localStorage.removeItem('premium_cache_time')
       }
 
-      // Essayer de se déconnecter via Supabase
-      try {
-        const { error } = await supabase.auth.signOut()
-        if (error) {
-          console.error('[HEADER] Erreur lors de la déconnexion:', error)
-          // Continuer quand même avec la redirection
-        }
-      } catch (supabaseError: any) {
-        console.error('[HEADER] Erreur Supabase lors de la déconnexion:', supabaseError)
-        // Si Supabase n'est pas disponible, continuer quand même
-      }
-
-      // Mettre à jour l'état local immédiatement
+      // Mettre à jour l'état local immédiatement pour un feedback visuel instantané
       setUser(null)
 
-      // Utiliser window.location pour forcer un rechargement complet en production
+      // Essayer de se déconnecter via Supabase avec timeout
+      // Après une redirection depuis Stripe, les cookies peuvent être corrompus
+      try {
+        const signOutPromise = supabase.auth.signOut({
+          scope: 'global' // Déconnexion globale pour tous les onglets
+        })
+        
+        // Timeout de 2 secondes pour éviter d'attendre indéfiniment
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 2000)
+        )
+        
+        await Promise.race([signOutPromise, timeoutPromise])
+        
+        console.log('[HEADER] Déconnexion Supabase réussie')
+      } catch (supabaseError: any) {
+        // Si Supabase échoue (timeout, erreur cookies, etc.), continuer quand même
+        console.warn('[HEADER] Erreur Supabase lors de la déconnexion:', supabaseError?.message || supabaseError)
+        
+        // Essayer de nettoyer manuellement les cookies Supabase si possible
+        if (typeof document !== 'undefined') {
+          // Nettoyer les cookies Supabase connus
+          const cookiesToRemove = [
+            'sb-access-token',
+            'sb-refresh-token',
+            'supabase.auth.token'
+          ]
+          
+          cookiesToRemove.forEach(cookieName => {
+            // Supprimer pour le domaine actuel
+            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
+            // Supprimer pour le domaine parent (si applicable)
+            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`
+          })
+        }
+      }
+
+      // Utiliser window.location.href pour forcer un rechargement complet
       // Cela garantit que tous les cookies et états sont nettoyés
+      // IMPORTANT : Utiliser window.location même si Supabase échoue
       if (typeof window !== 'undefined') {
-        window.location.href = '/'
+        // Petit délai pour permettre à Supabase de terminer si possible
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 100)
       } else {
         router.push('/')
         router.refresh()
