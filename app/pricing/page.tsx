@@ -153,7 +153,9 @@ export default function PricingPage() {
 
     // Écouter les changements d'authentification (seulement si Supabase fonctionne)
     try {
-      const authSubscription = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const {
+        data: { subscription: authSubscription },
+      } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (!isMounted) return
         
         setUser(session?.user ?? null)
@@ -181,7 +183,7 @@ export default function PricingPage() {
         }
       })
       
-      subscription = authSubscription.data
+      subscription = authSubscription
     } catch (error) {
       console.warn('[PRICING] Impossible de s\'abonner aux changements:', error)
     }
