@@ -4,8 +4,10 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/utils'
 
+// Force dynamic rendering to prevent static generation
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+export const fetchCache = 'force-no-store'
 
 export async function DELETE(req: Request) {
   try {
