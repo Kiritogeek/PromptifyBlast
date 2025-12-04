@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     console.log('[IP/CHECK] IP détectée:', ipAddress, 'Date:', today)
 
     // Utiliser supabaseAdmin pour bypass RLS et avoir les mêmes données que /api/generate
-    const { data: ipUsage, error } = await supabaseAdmin
+    let { data: ipUsage, error } = await supabaseAdmin
       .from('ip_usage')
       .select('*')
       .eq('ip_address', ipAddress)
