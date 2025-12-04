@@ -147,21 +147,43 @@ export default function AppPage() {
           }
         } else {
           // Utilisateur non connecté : utiliser l'IP (table ip_usage)
-          const response = await fetch('/api/ip/check')
-          const data = await response.json()
-          const dailyGen = data.daily_generations || 0
-          // Utiliser unlimited_prompt si disponible, sinon is_premium pour compatibilité
-          // Note: is_premium is legacy, use unlimited_prompt
-          const hasUnlimited = data.unlimited_prompt === true || data.unlimited_prompt === 'true' || data.unlimited_prompt === 1 || data.is_premium === true
-          setHasPremium(hasUnlimited)
-          setGenCount(dailyGen)
-          setRemaining(hasUnlimited ? -1 : Math.max(0, 3 - dailyGen))
-          
-          // Mettre en cache (sans user_id pour les utilisateurs non connectés)
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('premium_status', hasUnlimited.toString())
-            localStorage.removeItem('premium_user_id')
-            localStorage.setItem('premium_cache_time', Date.now().toString())
+          try {
+            const response = await fetch('/api/ip/check', {
+              cache: 'no-store', // Forcer la récupération depuis le serveur, pas le cache
+              headers: {
+                'Cache-Control': 'no-cache'
+              }
+            })
+            
+            if (!response.ok) {
+              throw new Error('Erreur lors de la vérification IP')
+            }
+            
+            const data = await response.json()
+            const dailyGen = data.daily_generations || 0
+            // Utiliser unlimited_prompt si disponible, sinon is_premium pour compatibilité
+            // Note: is_premium is legacy, use unlimited_prompt
+            const hasUnlimited = data.unlimited_prompt === true || data.unlimited_prompt === 'true' || data.unlimited_prompt === 1 || data.is_premium === true
+            
+            // Log pour déboguer
+            console.log('[APP] Statut IP:', { dailyGen, hasUnlimited, remaining: Math.max(0, 3 - dailyGen) })
+            
+            setHasPremium(hasUnlimited)
+            setGenCount(dailyGen)
+            setRemaining(hasUnlimited ? -1 : Math.max(0, 3 - dailyGen))
+            
+            // Mettre en cache (sans user_id pour les utilisateurs non connectés)
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('premium_status', hasUnlimited.toString())
+              localStorage.removeItem('premium_user_id')
+              localStorage.setItem('premium_cache_time', Date.now().toString())
+            }
+          } catch (ipError) {
+            console.error('[APP] Erreur lors de la vérification IP:', ipError)
+            // En cas d'erreur, utiliser des valeurs par défaut sûres
+            setHasPremium(false)
+            setGenCount(0)
+            setRemaining(3)
           }
         }
       } catch (error) {
@@ -207,22 +229,29 @@ export default function AppPage() {
     // Vérifier le statut après le retour depuis Stripe (détection via URL ou localStorage)
     // Si on revient de Stripe sans payer, le statut premium doit être vérifié
     if (typeof window !== 'undefined') {
-      // Vérifier si on vient de Stripe (via sessionStorage ou URL)
+      // Vérifier si on vient de Stripe (via sessionStorage ou referrer)
       const fromStripe = sessionStorage.getItem('from_stripe') === 'true'
-      if (fromStripe) {
+      const referrer = document.referrer
+      const isFromStripe = fromStripe || referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')
+      
+      if (isFromStripe) {
         sessionStorage.removeItem('from_stripe')
         // Forcer une vérification complète du statut après retour depuis Stripe
+        // Utiliser un timeout plus court pour éviter le blocage
         setTimeout(() => {
-          checkStatus(true)
-        }, 500) // Petit délai pour laisser le temps à la session de se stabiliser
+          if (isMountedRef.current) {
+            checkStatus(true)
+          }
+        }, 100) // Délai réduit pour une réponse plus rapide
       }
       
       // Écouter les événements de focus (quand l'utilisateur revient sur l'onglet)
       // Utile après le retour depuis Stripe
       const handleFocus = () => {
+        if (!isMountedRef.current) return
         // Vérifier si on vient de Stripe (détecté via referrer ou autre)
-        const referrer = document.referrer
-        if (referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')) {
+        const currentReferrer = document.referrer
+        if (currentReferrer.includes('stripe.com') || currentReferrer.includes('checkout.stripe.com')) {
           // Forcer une vérification complète après retour depuis Stripe
           checkStatus(true)
         }
@@ -279,10 +308,19 @@ export default function AppPage() {
 
     // Vérifier les limites pour les utilisateurs gratuits uniquement
     // Les premium ont remaining = -1 (illimité), donc cette vérification ne les bloque jamais
-    if (!hasPremium && remaining <= 0) {
-      setShowLimitError(true)
-      setTimeout(() => setShowLimitError(false), 5000) // Afficher pendant 5 secondes
-      return
+    // IMPORTANT: Ne pas bloquer si isChecking (on ne connaît pas encore le statut)
+    if (!isChecking && !hasPremium && remaining <= 0) {
+      // Rafraîchir le compteur avant de bloquer (au cas où il serait désynchronisé)
+      await checkStatus(true)
+      // Vérifier à nouveau après rafraîchissement - utiliser les valeurs mises à jour
+      // Note: checkStatus met à jour les states, mais on doit attendre un peu
+      await new Promise(resolve => setTimeout(resolve, 100))
+      // Si toujours bloqué après rafraîchissement, afficher l'erreur
+      if (remaining <= 0) {
+        setShowLimitError(true)
+        setTimeout(() => setShowLimitError(false), 5000) // Afficher pendant 5 secondes
+        return
+      }
     }
 
     // Pour les premium, on peut toujours générer (remaining = -1)
@@ -380,7 +418,18 @@ export default function AppPage() {
           } else {
             // Utilisateur non connecté : rafraîchir depuis IP (table ip_usage)
             // IMPORTANT: Toujours rafraîchir après une génération pour mettre à jour le compteur
-            await checkStatus(true) // Forcer le rafraîchissement depuis la BDD
+            const statusResponse = await fetch('/api/ip/check')
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json()
+              const dailyGen = statusData.daily_generations || 0
+              const hasUnlimited = statusData.unlimited_prompt === true || statusData.unlimited_prompt === 'true' || statusData.unlimited_prompt === 1
+              setHasPremium(hasUnlimited)
+              setGenCount(dailyGen)
+              setRemaining(hasUnlimited ? -1 : Math.max(0, 3 - dailyGen))
+            } else {
+              // En cas d'erreur, forcer un rafraîchissement complet
+              await checkStatus(true)
+            }
           }
         } catch (error) {
           console.error('Error refreshing counter:', error)
