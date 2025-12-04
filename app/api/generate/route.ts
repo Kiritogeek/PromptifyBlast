@@ -22,9 +22,19 @@ const openaiClient = openaiApiKey && openaiApiKey !== "ta_clef_ici" ? new OpenAI
 
 // Fonction pour vérifier et incrémenter le compteur de générations
 async function checkAndIncrementGenerations(userId: string | null, userEmail: string | null, req: Request): Promise<{ allowed: boolean; error?: string }> {
+  // Vérifier les variables d'environnement Supabase
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[GENERATE] Variables d\'environnement Supabase manquantes:', {
+      NEXT_PUBLIC_SUPABASE_URL: !!supabaseUrl,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: !!supabaseAnonKey
+    });
+    return { allowed: false, error: 'Configuration serveur incomplète. Veuillez contacter le support.' };
+  }
+
   const cookieStore = cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -112,12 +122,18 @@ async function checkAndIncrementGenerations(userId: string | null, userEmail: st
         
         if (resetError) {
           console.error('Error resetting daily generations:', resetError);
+        } else {
+          console.log('[GENERATE] Compteur réinitialisé pour userId:', userId, 'today:', today, 'last_reset était:', profile.last_reset);
         }
         dailyGenerations = 0;
       }
 
-      // Vérifier la limite (3 par jour)
+      // Log pour déboguer le problème de quota
+      console.log('[GENERATE] Vérification quota: userId=', userId, 'dailyGenerations=', dailyGenerations, 'today=', today, 'last_reset=', profile.last_reset, 'unlimited_prompt=', profile.unlimited_prompt);
+
+      // Vérifier la limite (3 par jour) - on bloque seulement si >= 3 (donc 4ème génération)
       if (dailyGenerations >= 3) {
+        console.log('[GENERATE] Limite atteinte: dailyGenerations=', dailyGenerations, '>= 3');
         return { allowed: false, error: 'Vous avez atteint votre limite de 3 générations gratuites aujourd\'hui. Passez à Premium pour des générations illimitées !' };
       }
 
@@ -247,14 +263,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Aucun texte fourni" }, { status: 400 });
     }
 
+    // Vérifier les variables d'environnement Supabase
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('[GENERATE] Variables d\'environnement Supabase manquantes:', {
+        NEXT_PUBLIC_SUPABASE_URL: !!supabaseUrl,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: !!supabaseAnonKey
+      });
+      return NextResponse.json(
+        { error: 'Configuration serveur incomplète. Les variables d\'environnement Supabase ne sont pas définies. Veuillez vérifier la configuration Vercel.' },
+        { status: 500 }
+      );
+    }
+
     // Récupérer l'utilisateur connecté (si disponible)
     // Méthode 1: Depuis les headers (plus fiable que les cookies)
     const userIdFromHeader = req.headers.get('x-user-id');
     
     // Méthode 2: Depuis les cookies (fallback)
     const cookieStore = cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
