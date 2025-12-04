@@ -4,9 +4,16 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-})
+// Initialisation lazy de Stripe pour éviter les erreurs lors du build
+function getStripe(): Stripe {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured')
+  }
+  return new Stripe(stripeSecretKey, {
+    apiVersion: '2025-11-17.clover',
+  })
+}
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -24,6 +31,7 @@ export async function GET(req: Request) {
     }
 
     // Récupérer la session Stripe pour vérifier le statut
+    const stripe = getStripe()
     const session = await stripe.checkout.sessions.retrieve(sessionId)
 
     // Vérifier que le paiement est bien complété

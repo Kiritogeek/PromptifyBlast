@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-})
+// Initialisation lazy de Stripe pour éviter les erreurs lors du build
+function getStripe(): Stripe {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured')
+  }
+  return new Stripe(stripeSecretKey, {
+    apiVersion: '2025-11-17.clover',
+  })
+}
 
 // Le webhook est optionnel - on utilise maintenant /api/check-payment pour activer le premium
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -27,6 +34,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event
 
   try {
+    const stripe = getStripe()
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message)
