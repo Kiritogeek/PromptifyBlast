@@ -18,6 +18,15 @@ export default function PricingPage() {
     let timeoutId: NodeJS.Timeout | null = null
     let subscription: { unsubscribe: () => void } | null = null
 
+    // Vérifier si on revient depuis Stripe (via referrer)
+    if (typeof window !== 'undefined') {
+      const referrer = document.referrer
+      if (referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')) {
+        // Marquer qu'on revient depuis Stripe pour que la page app détecte le retour
+        sessionStorage.setItem('from_stripe', 'true')
+      }
+    }
+
     // Fonction pour arrêter le chargement de manière sécurisée
     const stopChecking = () => {
       if (isMounted) {

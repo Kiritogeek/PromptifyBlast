@@ -392,7 +392,7 @@ export default function AvisPage() {
 
           {/* Success Notification */}
           {showSuccess && (
-            <div className="fixed top-4 right-4 z-50 animate-slide-in">
+            <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
               <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-green-400">
                 <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

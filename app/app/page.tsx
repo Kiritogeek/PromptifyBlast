@@ -203,6 +203,37 @@ export default function AppPage() {
         checkStatus(true) // Forcer la vérification si l'utilisateur change
       }
     })
+    
+    // Vérifier le statut après le retour depuis Stripe (détection via URL ou localStorage)
+    // Si on revient de Stripe sans payer, le statut premium doit être vérifié
+    if (typeof window !== 'undefined') {
+      // Vérifier si on vient de Stripe (via sessionStorage ou URL)
+      const fromStripe = sessionStorage.getItem('from_stripe') === 'true'
+      if (fromStripe) {
+        sessionStorage.removeItem('from_stripe')
+        // Forcer une vérification complète du statut après retour depuis Stripe
+        setTimeout(() => {
+          checkStatus(true)
+        }, 500) // Petit délai pour laisser le temps à la session de se stabiliser
+      }
+      
+      // Écouter les événements de focus (quand l'utilisateur revient sur l'onglet)
+      // Utile après le retour depuis Stripe
+      const handleFocus = () => {
+        // Vérifier si on vient de Stripe (détecté via referrer ou autre)
+        const referrer = document.referrer
+        if (referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')) {
+          // Forcer une vérification complète après retour depuis Stripe
+          checkStatus(true)
+        }
+      }
+      
+      window.addEventListener('focus', handleFocus)
+      
+      return () => {
+        window.removeEventListener('focus', handleFocus)
+      }
+    }
 
     // Rafraîchir le statut toutes les 30 secondes pour détecter les changements dans la BDD
     // IMPORTANT: Toujours vérifier depuis la BDD, pas depuis le cache
@@ -348,11 +379,8 @@ export default function AppPage() {
             }
           } else {
             // Utilisateur non connecté : rafraîchir depuis IP (table ip_usage)
-            const statusResponse = await fetch('/api/ip/check')
-            const statusData = await statusResponse.json()
-            const dailyGen = statusData.daily_generations || 0
-            setGenCount(dailyGen)
-            setRemaining(Math.max(0, 3 - dailyGen))
+            // IMPORTANT: Toujours rafraîchir après une génération pour mettre à jour le compteur
+            await checkStatus(true) // Forcer le rafraîchissement depuis la BDD
           }
         } catch (error) {
           console.error('Error refreshing counter:', error)
@@ -401,7 +429,7 @@ export default function AppPage() {
     <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 py-12">
       {/* Notification de succès */}
       {showSuccess && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+        <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
           <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-green-400">
             <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,7 +446,7 @@ export default function AppPage() {
 
       {/* Notification d'erreur - Limite atteinte */}
       {showLimitError && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-in">
+        <div className="fixed bottom-4 right-4 z-50 animate-slide-in">
           <div className="bg-gradient-to-r from-red-600 to-red-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-red-400">
             <div className="flex-shrink-0 bg-white/20 rounded-full p-1.5">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -677,7 +705,8 @@ export default function AppPage() {
             </section>
 
             {/* Compteur de générations pour utilisateurs gratuits */}
-            {!hasPremium && !isChecking && (
+            {/* Section Générations gratuites - Toujours afficher si non-premium, même si isChecking */}
+            {!hasPremium && (
               <div className={`mb-6 p-5 rounded-xl border backdrop-blur-sm shadow-lg ${
                 remaining === 0 
                   ? 'bg-red-900/20 border-red-600/50' 
@@ -692,20 +721,28 @@ export default function AppPage() {
                     }`}>
                       Générations gratuites aujourd'hui
                     </p>
-                    <p className={`text-2xl font-bold ${
-                      remaining === 0 
-                        ? 'text-red-400' 
-                        : 'text-white'
-                    }`}>
-                      {remaining} / 3
-                    </p>
-                    <p className={`text-xs mt-1 ${
-                      remaining === 0 
-                        ? 'text-red-300' 
-                        : 'text-gray-400'
-                    }`}>
-                      {genCount} génération{genCount > 1 ? 's' : ''} utilisée{genCount > 1 ? 's' : ''} sur 3
-                    </p>
+                    {isChecking ? (
+                      <p className="text-2xl font-bold text-gray-400">
+                        Chargement...
+                      </p>
+                    ) : (
+                      <>
+                        <p className={`text-2xl font-bold ${
+                          remaining === 0 
+                            ? 'text-red-400' 
+                            : 'text-white'
+                        }`}>
+                          {remaining} / 3
+                        </p>
+                        <p className={`text-xs mt-1 ${
+                          remaining === 0 
+                            ? 'text-red-300' 
+                            : 'text-gray-400'
+                        }`}>
+                          {genCount} génération{genCount > 1 ? 's' : ''} utilisée{genCount > 1 ? 's' : ''} sur 3
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Link
