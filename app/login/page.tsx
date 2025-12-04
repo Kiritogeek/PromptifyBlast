@@ -13,6 +13,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string>('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
@@ -135,6 +136,7 @@ function LoginForm() {
         
         // Si l'utilisateur est automatiquement connecté (confirmation d'email désactivée dans Supabase)
         if (data.user && data.session) {
+          setSuccessMessage('Inscription réussie !')
           setShowSuccess(true)
           setTimeout(() => {
             setShowSuccess(false)
@@ -152,6 +154,7 @@ function LoginForm() {
           
           if (!signInError && signInData.session) {
             // Connexion réussie
+            setSuccessMessage('Inscription réussie !')
             setShowSuccess(true)
             setTimeout(() => {
               setShowSuccess(false)
@@ -180,10 +183,17 @@ function LoginForm() {
           }
         }
         
-        // Rediriger vers la page demandée ou /app par défaut
-        const redirect = searchParams.get('redirect') || '/app'
-        router.push(redirect)
-        router.refresh()
+        // Afficher l'infobulle de succès
+        setSuccessMessage('Connexion réussie !')
+        setShowSuccess(true)
+        
+        // Rediriger vers la page demandée ou /app par défaut après un court délai
+        setTimeout(() => {
+          setShowSuccess(false)
+          const redirect = searchParams.get('redirect') || '/app'
+          router.push(redirect)
+          router.refresh()
+        }, 1500)
       }
     } catch (error: any) {
       // Récupérer le code d'erreur si disponible
@@ -198,7 +208,7 @@ function LoginForm() {
 
   return (
     <main className="min-h-screen bg-gray-900 py-12">
-      {/* Notification de succès - Inscription */}
+      {/* Notification de succès - Connexion et Inscription */}
       {showSuccess && (
         <div className="fixed top-4 right-4 z-50 animate-slide-in">
           <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 min-w-[320px] border border-green-400">
@@ -208,8 +218,10 @@ function LoginForm() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-bold text-base">✅ Inscription réussie !</p>
-              <p className="text-sm text-green-50 mt-0.5">Vérifiez votre email pour confirmer votre compte.</p>
+              <p className="font-bold text-base">✅ {successMessage}</p>
+              <p className="text-sm text-green-50 mt-0.5">
+                {isSignUp ? 'Redirection en cours...' : 'Redirection en cours...'}
+              </p>
             </div>
           </div>
         </div>
