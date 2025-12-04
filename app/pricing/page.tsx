@@ -14,25 +14,59 @@ export default function PricingPage() {
   const router = useRouter()
 
   useEffect(() => {
+    // Timeout de sécurité pour éviter le blocage infini
+    const timeoutId = setTimeout(() => {
+      console.warn('[PRICING] Timeout de vérification, arrêt du chargement')
+      setIsChecking(false)
+    }, 10000) // 10 secondes maximum
+
     // Vérifier si l'utilisateur est connecté et son statut premium
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('[PRICING] Erreur lors de la récupération de la session:', sessionError)
+          setUser(null)
+          setIsPremium(false)
+          setIsChecking(false)
+          clearTimeout(timeoutId)
+          return
+        }
 
-      // Si l'utilisateur est connecté, vérifier son statut premium
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_premium')
-          .eq('id', session.user.id)
-          .single()
+        setUser(session?.user ?? null)
 
-        setIsPremium(profile?.is_premium || false)
-      } else {
+        // Si l'utilisateur est connecté, vérifier son statut premium
+        if (session?.user) {
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('is_premium')
+              .eq('id', session.user.id)
+              .single()
+
+            if (profileError) {
+              console.error('[PRICING] Erreur lors de la récupération du profil:', profileError)
+              // Ne pas bloquer l'utilisateur, continuer avec isPremium = false
+              setIsPremium(false)
+            } else {
+              setIsPremium(profile?.is_premium || false)
+            }
+          } catch (error) {
+            console.error('[PRICING] Erreur lors de la vérification du statut premium:', error)
+            setIsPremium(false)
+          }
+        } else {
+          setIsPremium(false)
+        }
+      } catch (error) {
+        console.error('[PRICING] Erreur lors de la vérification de l\'authentification:', error)
+        setUser(null)
         setIsPremium(false)
+      } finally {
+        setIsChecking(false)
+        clearTimeout(timeoutId)
       }
-
-      setIsChecking(false)
     }
 
     checkAuth()
@@ -43,19 +77,32 @@ export default function PricingPage() {
 
       // Mettre à jour le statut premium si l'utilisateur est connecté
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_premium')
-          .eq('id', session.user.id)
-          .single()
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_premium')
+            .eq('id', session.user.id)
+            .single()
 
-        setIsPremium(profile?.is_premium || false)
+          if (profileError) {
+            console.error('[PRICING] Erreur lors de la mise à jour du profil:', profileError)
+            setIsPremium(false)
+          } else {
+            setIsPremium(profile?.is_premium || false)
+          }
+        } catch (error) {
+          console.error('[PRICING] Erreur lors de la mise à jour du statut premium:', error)
+          setIsPremium(false)
+        }
       } else {
         setIsPremium(false)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeoutId)
+    }
   }, [])
 
   const handleBuy = async () => {
@@ -106,7 +153,10 @@ export default function PricingPage() {
       <main className="min-h-screen bg-gray-900 py-12">
         <div className="container mx-auto px-4">
           <div className="max-w-md mx-auto text-center">
-            <div className="text-white">Vérification...</div>
+            <div className="text-white mb-4">Vérification...</div>
+            <div className="text-gray-400 text-sm">
+              Si cette page reste bloquée, essayez de rafraîchir la page.
+            </div>
           </div>
         </div>
       </main>
