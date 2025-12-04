@@ -29,15 +29,16 @@ export default function PricingPage() {
       }
     }
 
-    // Timeout de sécurité réduit à 2 secondes pour éviter le blocage
+    // Timeout de sécurité réduit à 3 secondes pour éviter le blocage
     // ⚠️ IMPORTANT : Ne pas mettre setUser(null) ici car cela déconnecte l'utilisateur
     // Si la vérification prend trop de temps, on affiche juste la page sans bloquer
     timeoutId = setTimeout(() => {
-      console.warn('[PRICING] Timeout de vérification (2s), arrêt du chargement')
+      console.warn('[PRICING] Timeout de vérification (3s), arrêt du chargement')
       stopChecking()
       // Ne pas mettre setUser(null) ici - laisser l'utilisateur connecté si la session existe
       // setIsPremium(false) est déjà géré par défaut dans le code
-    }, 2000) // 2 secondes maximum
+      // L'utilisateur sera mis à jour via onAuthStateChange si nécessaire
+    }, 3000) // 3 secondes maximum
 
     // Vérifier si l'utilisateur est connecté et son statut premium
     const checkAuth = async () => {
@@ -70,13 +71,14 @@ export default function PricingPage() {
           return
         }
 
-        // Essayer de récupérer la session avec un timeout
+        // Essayer de récupérer la session avec un timeout plus long
+        // Après une redirection depuis Stripe, la session peut prendre du temps à se charger
         let session = null
         
         try {
           const sessionPromise = supabase.auth.getSession()
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 1500)
+            setTimeout(() => reject(new Error('Timeout')), 2500) // Augmenté à 2.5s
           )
           
           const result = await Promise.race([sessionPromise, timeoutPromise]) as any
@@ -87,6 +89,8 @@ export default function PricingPage() {
         } catch (error: any) {
           // Erreur normale si Supabase n'est pas configuré ou timeout
           console.warn('[PRICING] Impossible de récupérer la session:', error?.message || 'Timeout')
+          // ⚠️ IMPORTANT : Ne pas mettre setUser(null) ici
+          // La session sera mise à jour via onAuthStateChange si l'utilisateur est connecté
         }
         
         if (!isMounted) {
@@ -94,7 +98,11 @@ export default function PricingPage() {
           return
         }
 
-        setUser(session?.user ?? null)
+        // Mettre à jour l'utilisateur seulement si on a réussi à récupérer la session
+        // Sinon, laisser l'état actuel (sera mis à jour via onAuthStateChange)
+        if (session !== null) {
+          setUser(session?.user ?? null)
+        }
 
         // Si l'utilisateur est connecté, vérifier son statut premium
         if (session?.user) {
@@ -155,12 +163,15 @@ export default function PricingPage() {
       })
 
     // Écouter les changements d'authentification (seulement si Supabase fonctionne)
+    // ⚠️ IMPORTANT : Cela permet de mettre à jour l'utilisateur même si getSession() timeout
     try {
       const {
         data: { subscription: authSubscription },
       } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (!isMounted) return
         
+        // Mettre à jour l'utilisateur dès qu'on reçoit une mise à jour de session
+        // Cela corrige le cas où getSession() a timeout mais l'utilisateur est connecté
         setUser(session?.user ?? null)
 
         if (session?.user) {
