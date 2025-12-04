@@ -680,6 +680,178 @@ await supabaseAdmin
 3. Redéployer après modification des variables
 4. Vérifier les logs Vercel pour les erreurs
 
+### Bug #6 : Compteur IP Désynchronisé entre Affichage et Génération
+
+**PROBLÈME** : Le compteur affiche "3 / 3" (0 génération utilisée) mais la génération est bloquée avec "Limite atteinte".
+
+**CAUSE** :
+- `/api/ip/check` utilisait `createClient` avec la clé anonyme (soumis à RLS)
+- `/api/generate` utilisait `supabaseAdmin` (bypass RLS)
+- Les deux endpoints voyaient des données différentes dans la table `ip_usage`
+- Le client voyait 0 générations mais le serveur voyait 3 générations
+
+**SOLUTION** :
+```typescript
+// ❌ MAUVAIS - Utilise la clé anonyme (soumis à RLS)
+// app/api/ip/check/route.ts
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const { data: ipUsage } = await supabase
+  .from('ip_usage')
+  .select('*')
+  .eq('ip_address', ipAddress)
+  .single()
+
+// ✅ BON - Utilise supabaseAdmin (même que /api/generate)
+// app/api/ip/check/route.ts
+import { supabaseAdmin } from '@/lib/supabase-server'
+
+let { data: ipUsage, error } = await supabaseAdmin
+  .from('ip_usage')
+  .select('*')
+  .eq('ip_address', ipAddress)
+  .maybeSingle()
+
+// ⚠️ IMPORTANT : Utiliser let au lieu de const si on doit réassigner
+let dailyGenerations = ipUsage.daily_generations || 0
+if (ipUsage.last_reset !== today) {
+  const { data: updated } = await supabaseAdmin
+    .from('ip_usage')
+    .update({ daily_generations: 0, last_reset: today })
+    .eq('ip_address', ipAddress)
+    .select()
+    .single()
+  
+  if (updated) {
+    ipUsage = updated // ✅ Possible avec let, pas avec const
+    dailyGenerations = 0
+  }
+}
+```
+
+**RÈGLE D'OR** : Toujours utiliser `supabaseAdmin` dans les API routes pour avoir accès aux mêmes données, surtout pour les tables avec RLS activé.
+
+### Bug #7 : Section "Générations gratuites" Bloquée sur "Chargement..." après Stripe
+
+**PROBLÈME** : Après avoir quitté Stripe sans payer, la section reste bloquée sur "Chargement..." et nécessite un refresh.
+
+**CAUSE** :
+- `isChecking` reste à `true` indéfiniment
+- Le timeout de vérification est trop long (500ms)
+- La détection du retour depuis Stripe n'est pas fiable
+- La section ne s'affiche que si `!isChecking`
+
+**SOLUTION** :
+```typescript
+// 1. Afficher la section même pendant le chargement (avec état "Chargement...")
+{!hasPremium && (
+  <div className="mb-6 p-5 rounded-xl border">
+    {isChecking ? (
+      <p className="text-2xl font-bold text-gray-400">Chargement...</p>
+    ) : (
+      <>
+        <p className="text-2xl font-bold">{remaining} / 3</p>
+        <p className="text-xs">{genCount} génération{genCount > 1 ? 's' : ''} utilisée{genCount > 1 ? 's' : ''} sur 3</p>
+      </>
+    )}
+  </div>
+)}
+
+// 2. Détecter le retour depuis Stripe de manière fiable
+useEffect(() => {
+  // Vérifier sessionStorage ET referrer
+  const fromStripe = sessionStorage.getItem('from_stripe') === 'true'
+  const referrer = document.referrer
+  const isFromStripe = fromStripe || referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')
+  
+  if (isFromStripe) {
+    sessionStorage.removeItem('from_stripe')
+    // Timeout réduit pour réponse plus rapide
+    setTimeout(() => {
+      if (isMountedRef.current) {
+        checkStatus(true)
+      }
+    }, 100) // Réduit de 500ms à 100ms
+  }
+  
+  // Écouter les événements focus (retour sur l'onglet)
+  const handleFocus = () => {
+    if (!isMountedRef.current) return
+    const currentReferrer = document.referrer
+    if (currentReferrer.includes('stripe.com') || currentReferrer.includes('checkout.stripe.com')) {
+      checkStatus(true)
+    }
+  }
+  
+  window.addEventListener('focus', handleFocus)
+  return () => window.removeEventListener('focus', handleFocus)
+}, [])
+
+// 3. Marquer le retour depuis Stripe dans la page pricing
+// app/pricing/page.tsx
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const referrer = document.referrer
+    if (referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')) {
+      sessionStorage.setItem('from_stripe', 'true')
+    }
+  }
+}, [])
+```
+
+### Bug #8 : Rafraîchissement du Compteur après Génération
+
+**PROBLÈME** : Après une génération réussie, le compteur ne se met pas à jour correctement pour les utilisateurs non connectés.
+
+**CAUSE** :
+- Utilisation de `fetch('/api/ip/check')` qui peut être mis en cache
+- Pas de rafraîchissement forcé après génération
+- Le compteur côté client n'est pas synchronisé avec le serveur
+
+**SOLUTION** :
+```typescript
+// ❌ MAUVAIS - Peut utiliser le cache
+const statusResponse = await fetch('/api/ip/check')
+const statusData = await statusResponse.json()
+
+// ✅ BON - Force la récupération depuis le serveur
+const statusResponse = await fetch('/api/ip/check', {
+  cache: 'no-store', // Forcer la récupération depuis le serveur
+  headers: {
+    'Cache-Control': 'no-cache'
+  }
+})
+
+// ✅ BON - Rafraîchir avant de bloquer si limite atteinte
+if (!isChecking && !hasPremium && remaining <= 0) {
+  // Rafraîchir le compteur avant de bloquer (au cas où il serait désynchronisé)
+  await checkStatus(true)
+  // Attendre un peu pour laisser les states se mettre à jour
+  await new Promise(resolve => setTimeout(resolve, 100))
+  // Vérifier à nouveau après rafraîchissement
+  if (remaining <= 0) {
+    setShowLimitError(true)
+    return
+  }
+}
+```
+
+### Bug #9 : Infobulles qui Bloquent la Navigation
+
+**PROBLÈME** : Les infobulles de succès/erreur sont positionnées en haut à droite et bloquent les boutons de navigation.
+
+**SOLUTION** :
+```typescript
+// ❌ MAUVAIS - En haut à droite
+<div className="fixed top-4 right-4 z-50">
+
+// ✅ BON - En bas à droite (ne bloque pas la navigation)
+<div className="fixed bottom-4 right-4 z-50">
+```
+
+**APPLIQUER À** :
+- Notifications de succès (génération, connexion, inscription, avis)
+- Notifications d'erreur (limite atteinte, erreurs diverses)
+
 ---
 
 ## ✅ Bonnes Pratiques
@@ -715,6 +887,27 @@ await supabaseAdmin
 - ✅ Utiliser `window.location.href` pour forcer un rechargement complet
 - ✅ Utiliser `router.push()` pour les navigations normales
 - ✅ Toujours nettoyer les états avant redirection
+
+### 6. Synchronisation Client-Serveur
+
+- ✅ Toujours utiliser `supabaseAdmin` dans les API routes pour bypass RLS
+- ✅ Utiliser `cache: 'no-store'` pour forcer la récupération depuis le serveur
+- ✅ Rafraîchir le compteur avant de bloquer si limite atteinte (éviter faux positifs)
+- ✅ Utiliser `let` au lieu de `const` si on doit réassigner la variable plus tard
+
+### 7. Détection du Retour depuis Stripe
+
+- ✅ Utiliser `sessionStorage` pour marquer le retour depuis Stripe
+- ✅ Vérifier `document.referrer` pour détecter le retour
+- ✅ Écouter les événements `focus` pour détecter le retour sur l'onglet
+- ✅ Réduire les timeouts (100ms au lieu de 500ms) pour réponse plus rapide
+- ✅ Afficher la section même pendant le chargement (avec état "Chargement...")
+
+### 8. Positionnement des Notifications
+
+- ✅ Toujours positionner les infobulles en bas à droite (`bottom-4 right-4`)
+- ✅ Ne jamais bloquer les éléments de navigation avec les notifications
+- ✅ Utiliser `z-50` pour s'assurer que les notifications sont au-dessus
 
 ---
 
@@ -827,6 +1020,129 @@ if (!result) {
 }
 ```
 
+### Pattern 5 : Synchronisation du Compteur IP
+
+```typescript
+// ⚠️ CRITIQUE : Toujours utiliser supabaseAdmin dans les API routes
+// pour avoir les mêmes données que /api/generate
+
+// app/api/ip/check/route.ts
+import { supabaseAdmin } from '@/lib/supabase-server'
+
+export async function GET(request: Request) {
+  const ipAddress = getClientIP(request)
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Utiliser supabaseAdmin (même que /api/generate)
+  let { data: ipUsage, error } = await supabaseAdmin
+    .from('ip_usage')
+    .select('*')
+    .eq('ip_address', ipAddress)
+    .maybeSingle()
+  
+  // Si pas d'entrée, retourner 0 générations
+  if (!ipUsage) {
+    return NextResponse.json({
+      daily_generations: 0,
+      remaining: 3,
+      can_generate: true
+    })
+  }
+  
+  // Réinitialiser si nécessaire
+  let dailyGenerations = ipUsage.daily_generations || 0
+  if (ipUsage.last_reset !== today) {
+    const { data: updated } = await supabaseAdmin
+      .from('ip_usage')
+      .update({ daily_generations: 0, last_reset: today })
+      .eq('ip_address', ipAddress)
+      .select()
+      .single()
+    
+    if (updated) {
+      ipUsage = updated // ✅ Possible avec let
+      dailyGenerations = 0
+    }
+  }
+  
+  return NextResponse.json({
+    daily_generations: dailyGenerations,
+    remaining: Math.max(0, 3 - dailyGenerations),
+    can_generate: dailyGenerations < 3
+  })
+}
+```
+
+### Pattern 6 : Détection du Retour depuis Stripe
+
+```typescript
+// 1. Marquer le retour dans la page pricing
+// app/pricing/page.tsx
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const referrer = document.referrer
+    if (referrer.includes('stripe.com') || referrer.includes('checkout.stripe.com')) {
+      sessionStorage.setItem('from_stripe', 'true')
+    }
+  }
+}, [])
+
+// 2. Détecter et réagir dans la page app
+// app/app/page.tsx
+useEffect(() => {
+  // Vérifier sessionStorage ET referrer
+  const fromStripe = sessionStorage.getItem('from_stripe') === 'true'
+  const referrer = document.referrer
+  const isFromStripe = fromStripe || referrer.includes('stripe.com')
+  
+  if (isFromStripe) {
+    sessionStorage.removeItem('from_stripe')
+    // Rafraîchir rapidement le statut
+    setTimeout(() => {
+      if (isMountedRef.current) {
+        checkStatus(true)
+      }
+    }, 100) // Timeout court pour réponse rapide
+  }
+  
+  // Écouter les événements focus
+  const handleFocus = () => {
+    if (!isMountedRef.current) return
+    const currentReferrer = document.referrer
+    if (currentReferrer.includes('stripe.com')) {
+      checkStatus(true)
+    }
+  }
+  
+  window.addEventListener('focus', handleFocus)
+  return () => window.removeEventListener('focus', handleFocus)
+}, [])
+```
+
+### Pattern 7 : Rafraîchissement Forcé du Compteur
+
+```typescript
+// Côté client - Forcer la récupération depuis le serveur
+const response = await fetch('/api/ip/check', {
+  cache: 'no-store', // ⚠️ IMPORTANT : bypass le cache
+  headers: {
+    'Cache-Control': 'no-cache'
+  }
+})
+
+// Après génération - Rafraîchir avant de bloquer
+if (!hasPremium && remaining <= 0) {
+  // Rafraîchir avant de bloquer (éviter faux positifs)
+  await checkStatus(true)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  // Vérifier à nouveau
+  if (remaining <= 0) {
+    setShowLimitError(true)
+    return
+  }
+}
+```
+
 ---
 
 ## 📝 Checklist pour une Nouvelle Application
@@ -893,6 +1209,84 @@ Les points clés à retenir :
 4. **Utiliser `window.location.href` pour les redirections critiques**
 5. **Nettoyer le localStorage lors de la déconnexion**
 6. **Tester en production** - les problèmes apparaissent souvent seulement là
+7. **Toujours utiliser `supabaseAdmin` dans les API routes** pour bypass RLS et avoir les mêmes données
+8. **Forcer le rafraîchissement du cache** avec `cache: 'no-store'` pour les données critiques
+9. **Positionner les notifications en bas à droite** pour ne pas bloquer la navigation
+10. **Utiliser `let` au lieu de `const`** si on doit réassigner la variable plus tard
+
+## 📊 Architecture de l'Application
+
+### Flux de Génération de Prompts
+
+```
+1. Utilisateur entre du texte dans /app
+   ↓
+2. Clic sur "Générer"
+   ↓
+3. Vérification côté client (remaining > 0)
+   ↓
+4. POST /api/generate
+   ↓
+5. checkAndIncrementGenerations()
+   ├─ Si connecté : Vérifier profiles.daily_generations
+   └─ Si non connecté : Vérifier ip_usage.daily_generations
+   ↓
+6. Si limite atteinte : Retourner 429
+   ↓
+7. Si OK : Incrémenter compteur + Générer prompt avec Groq/OpenAI
+   ↓
+8. Retourner le prompt optimisé
+   ↓
+9. Côté client : Rafraîchir le compteur depuis /api/ip/check ou profiles
+```
+
+### Flux de Paiement Stripe
+
+```
+1. Utilisateur clique "Acheter Premium" dans /pricing
+   ↓
+2. POST /api/checkout
+   ├─ Vérifier authentification
+   ├─ Créer session Stripe avec metadata (user_id, user_email)
+   └─ Retourner URL de checkout
+   ↓
+3. Redirection vers Stripe Checkout
+   ↓
+4a. Paiement réussi → /success?session_id=xxx
+   ├─ GET /api/check-payment?session_id=xxx
+   ├─ Vérifier paiement avec Stripe
+   ├─ Mettre à jour profiles.is_premium = true
+   └─ Redirection vers /app
+   ↓
+4b. Paiement annulé → /pricing
+   ├─ Détecter retour depuis Stripe (referrer + sessionStorage)
+   ├─ Vérifier statut premium (doit être false)
+   └─ Afficher page pricing normale
+```
+
+### Gestion du Compteur IP
+
+```
+Table ip_usage :
+- ip_address (string, unique)
+- daily_generations (integer, default 0)
+- last_reset (date, format YYYY-MM-DD)
+- unlimited_prompt (boolean, default false)
+- is_premium (boolean, legacy, default false)
+
+Logique :
+1. Récupérer ou créer entrée pour IP
+2. Si last_reset !== today : Réinitialiser daily_generations = 0
+3. Si daily_generations >= 3 : Bloquer génération
+4. Sinon : Incrémenter daily_generations + 1
+```
+
+### Points Critiques de Synchronisation
+
+1. **Compteur IP** : `/api/ip/check` et `/api/generate` doivent utiliser `supabaseAdmin` pour voir les mêmes données
+2. **Statut Premium** : Vérifier depuis la BDD après retour depuis Stripe, pas depuis le cache
+3. **Compteur Utilisateur** : Rafraîchir après chaque génération pour synchronisation client-serveur
+4. **Cache localStorage** : Invalider lors de la déconnexion et après paiement Stripe
 
 Ce guide couvre tous les problèmes rencontrés et leurs solutions. Utilisez-le comme référence pour créer de nouvelles applications plus efficacement.
 
