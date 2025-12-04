@@ -1,58 +1,42 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { getClientIP, isUnlimited } from '@/lib/utils'
+import { supabaseAdmin } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json({ 
-        is_premium: false, 
-        daily_generations: 0,
-        can_generate: true 
-      })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const ipAddress = getClientIP(request)
     const today = new Date().toISOString().split('T')[0]
+    
+    // Log pour déboguer
+    console.log('[IP/CHECK] IP détectée:', ipAddress, 'Date:', today)
 
-    // Récupérer ou créer l'entrée pour cette IP
-    let { data: ipUsage, error } = await supabase
+    // Utiliser supabaseAdmin pour bypass RLS et avoir les mêmes données que /api/generate
+    const { data: ipUsage, error } = await supabaseAdmin
       .from('ip_usage')
       .select('*')
       .eq('ip_address', ipAddress)
-      .single()
+      .maybeSingle()
 
-    // Si l'entrée n'existe pas, la créer
-    if (error && error.code === 'PGRST116') {
-      const { data: newUsage, error: insertError } = await supabase
-        .from('ip_usage')
-        .insert({
-          ip_address: ipAddress,
-          daily_generations: 0,
-          last_reset: today,
-          is_premium: false,
-        })
-        .select()
-        .single()
+    // Log pour déboguer
+    console.log('[IP/CHECK] IP usage trouvé:', ipUsage ? `daily_generations=${ipUsage.daily_generations}, last_reset=${ipUsage.last_reset}` : 'aucun')
 
-      if (insertError) {
-        console.error('Error creating IP usage:', insertError)
-        return NextResponse.json({ 
-          is_premium: false, 
-          daily_generations: 0,
-          can_generate: true 
-        })
-      }
+    // Si l'entrée n'existe pas, retourner 0 générations (elle sera créée lors de la première génération)
+    if (!ipUsage) {
+      console.log('[IP/CHECK] Aucune entrée IP trouvée, retourner 0 générations')
+      return NextResponse.json({
+        ip_address: ipAddress,
+        is_premium: false,
+        unlimited_prompt: false,
+        daily_generations: 0,
+        can_generate: true,
+        remaining: 3
+      })
+    }
 
-      ipUsage = newUsage
-    } else if (error) {
-      console.error('Error fetching IP usage:', error)
+    if (error && error.code !== 'PGRST116') {
+      console.error('[IP/CHECK] Error fetching IP usage:', error)
       return NextResponse.json({ 
         is_premium: false, 
         daily_generations: 0,
@@ -61,8 +45,10 @@ export async function GET(request: Request) {
     }
 
     // Vérifier si le compteur doit être réinitialisé (après 24h / changement de jour)
-    if (ipUsage && ipUsage.last_reset !== today) {
-      const { data: updated, error: resetError } = await supabase
+    let dailyGenerations = ipUsage.daily_generations || 0
+    if (ipUsage.last_reset !== today) {
+      // Réinitialiser le compteur dans la BDD
+      const { data: updated, error: resetError } = await supabaseAdmin
         .from('ip_usage')
         .update({ 
           daily_generations: 0, 
@@ -74,23 +60,35 @@ export async function GET(request: Request) {
         .single()
 
       if (resetError) {
-        console.error('Error resetting IP daily generations:', resetError)
+        console.error('[IP/CHECK] Error resetting IP daily generations:', resetError)
       } else if (updated) {
         ipUsage = updated
+        dailyGenerations = 0
+      } else {
+        dailyGenerations = 0
       }
     }
 
-    const hasUnlimited = isUnlimited(ipUsage?.unlimited_prompt)
-    const dailyGenerations = ipUsage?.daily_generations || 0
+    const hasUnlimited = isUnlimited(ipUsage.unlimited_prompt)
     const canGenerate = hasUnlimited || dailyGenerations < 3
+    const remaining = hasUnlimited ? -1 : Math.max(0, 3 - dailyGenerations)
+
+    // Log pour déboguer
+    console.log('[IP/CHECK] Résultat:', { 
+      ipAddress, 
+      dailyGenerations, 
+      hasUnlimited, 
+      remaining, 
+      canGenerate 
+    })
 
     return NextResponse.json({
       ip_address: ipAddress,
-      is_premium: ipUsage?.is_premium || false, // Garder pour compatibilité
+      is_premium: ipUsage.is_premium || false, // Garder pour compatibilité
       unlimited_prompt: hasUnlimited,
       daily_generations: dailyGenerations,
       can_generate: canGenerate,
-      remaining: hasUnlimited ? -1 : Math.max(0, 3 - dailyGenerations)
+      remaining: remaining
     })
   } catch (error) {
     console.error('IP check error:', error)
