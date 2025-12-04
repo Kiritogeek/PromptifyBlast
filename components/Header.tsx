@@ -53,7 +53,7 @@ export default function Header() {
       const checkSession = () => {
         supabase.auth.getSession().then(({ data: { session } }) => {
           // Utiliser setUser avec une fonction pour avoir la valeur actuelle
-          setUser(currentUser => {
+          setUser((currentUser: any) => {
             if (!session?.user && currentUser) {
               // Session perdue, mettre à jour l'état
               console.log('[HEADER] Session perdue détectée, déconnexion')
