@@ -3,11 +3,13 @@ import Stripe from 'stripe'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2025-11-17.clover',
 })
 
 // Le webhook est optionnel - on utilise maintenant /api/check-payment pour activer le premium
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   // Si STRIPE_WEBHOOK_SECRET n'est pas configuré, le webhook n'est pas utilisé

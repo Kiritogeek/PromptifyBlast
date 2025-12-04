@@ -6,6 +6,8 @@ import { isAdmin, isUnlimited } from '@/lib/utils'
 
 const ADMIN_EMAIL = 'louisbasnier@gmail.com'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
   try {
     // Méthode 1: Récupérer l'ID depuis les headers (plus fiable)
@@ -24,7 +26,7 @@ export async function GET(req: Request) {
         set() {},
         remove() {},
       },
-    })
+    } as any)
     
     // Vérifier si l'utilisateur est connecté
     let user = null

@@ -7,12 +7,14 @@ let stripe: Stripe | null = null;
 if (process.env.STRIPE_SECRET_KEY) {
   try {
     stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-11-20.acacia",
+      apiVersion: "2025-11-17.clover",
     });
   } catch (error) {
     console.error("Erreur lors de l'initialisation de Stripe:", error);
   }
 }
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   try {
@@ -65,6 +67,16 @@ export async function POST(req: Request) {
       );
     }
 
+    // Détecter automatiquement l'URL : production (Vercel/Netlify) ou développement local
+    // Vercel fournit automatiquement VERCEL_URL, Netlify fournit DEPLOY_PRIME_URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+      || process.env.VERCEL_URL 
+      || process.env.DEPLOY_PRIME_URL
+      || (process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL).origin : null)
+      || (process.env.NODE_ENV === 'production' ? 'https://promptifyblast.com' : 'http://localhost:3000')
+    
+    // Ajouter le protocole si manquant (Vercel/Netlify ne l'incluent pas toujours)
+    const appUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment", // One-time payment
@@ -80,17 +92,6 @@ export async function POST(req: Request) {
         user_id: userId, // ID utilisateur (OBLIGATOIRE pour associer le premium)
         user_email: userEmail, // Email pour référence
       },
-      // Détecter automatiquement l'URL : production (Vercel/Netlify) ou développement local
-      // Vercel fournit automatiquement VERCEL_URL, Netlify fournit DEPLOY_PRIME_URL
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
-        || process.env.VERCEL_URL 
-        || process.env.DEPLOY_PRIME_URL
-        || (process.env.NEXT_PUBLIC_SITE_URL && new URL(process.env.NEXT_PUBLIC_SITE_URL).origin)
-        || (process.env.NODE_ENV === 'production' ? 'https://promptifyblast.com' : 'http://localhost:3000')
-      
-      // Ajouter le protocole si manquant (Vercel/Netlify ne l'incluent pas toujours)
-      const appUrl = baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`
-      
       success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/pricing`,
     });

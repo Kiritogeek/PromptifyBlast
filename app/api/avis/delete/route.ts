@@ -4,6 +4,8 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { isAdmin } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -20,8 +22,10 @@ export async function DELETE(req: Request) {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
+        set() {},
+        remove() {},
       },
-    })
+    } as any)
     
     // Récupérer l'ID utilisateur depuis les headers
     const userIdFromHeader = req.headers.get('x-user-id')

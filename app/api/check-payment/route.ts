@@ -5,8 +5,10 @@ import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2025-11-17.clover',
 })
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   try {

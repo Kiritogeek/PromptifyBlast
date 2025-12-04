@@ -31,8 +31,10 @@ async function checkAndIncrementGenerations(userId: string | null, userEmail: st
       get(name: string) {
         return cookieStore.get(name)?.value;
       },
+      set() {},
+      remove() {},
     },
-  });
+  } as any);
   
   const today = new Date().toISOString().split('T')[0];
 
@@ -227,6 +229,8 @@ async function checkAndIncrementGenerations(userId: string | null, userEmail: st
   }
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   try {
     // Debug: vérifier les clés chargées
@@ -254,7 +258,7 @@ export async function POST(req: Request) {
         set() {}, // Pas besoin de set dans les API routes
         remove() {}, // Pas besoin de remove dans les API routes
       },
-    });
+    } as any);
     
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     let userId = user?.id || userIdFromHeader || null;

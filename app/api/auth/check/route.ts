@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const cookieStore = cookies()
@@ -17,8 +19,10 @@ export async function GET() {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
+        set() {},
+        remove() {},
       },
-    })
+    } as any)
 
     const {
       data: { user },

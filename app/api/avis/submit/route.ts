@@ -4,6 +4,8 @@ import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase-server'
 import { isUnlimited } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: Request) {
   try {
     const { content, tag } = await req.json()
@@ -29,8 +31,10 @@ export async function POST(req: Request) {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
+        set() {},
+        remove() {},
       },
-    })
+    } as any)
     
     // Vérifier si l'utilisateur est connecté
     console.log('[AVIS SUBMIT] Début de la soumission, vérification de l\'authentification...')
