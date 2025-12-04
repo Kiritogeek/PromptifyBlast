@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase-server';
-import { cleanOptimizedResponse, isUnlimited } from '@/lib/utils';
+import { cleanOptimizedResponse, isUnlimited, getClientIP } from '@/lib/utils';
 
 // Configuration Groq (gratuit et rapide)
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -140,20 +140,24 @@ async function checkAndIncrementGenerations(userId: string | null, userEmail: st
     } else {
       // Utilisateur NON connecté : vérifier par IP uniquement
       // Note: Si l'utilisateur est connecté, on ne devrait JAMAIS arriver ici
-      const forwarded = req.headers.get('x-forwarded-for');
-      const realIP = req.headers.get('x-real-ip');
-      const ipAddress = forwarded?.split(',')[0].trim() || realIP?.trim() || '127.0.0.1';
+      const ipAddress = getClientIP(req);
+      
+      // Log pour déboguer en production
+      console.log('[GENERATE] Utilisateur non connecté, IP détectée:', ipAddress);
       
       const { data: ipUsage, error: ipError } = await supabaseAdmin
         .from('ip_usage')
         .select('*')
         .eq('ip_address', ipAddress)
-        .single();
+        .maybeSingle();
 
       if (ipError && ipError.code !== 'PGRST116') {
-        console.error('Error fetching IP usage:', ipError);
+        console.error('[GENERATE] Error fetching IP usage:', ipError);
+        console.error('[GENERATE] IP address:', ipAddress);
         return { allowed: false, error: 'Erreur lors de la vérification IP' };
       }
+      
+      console.log('[GENERATE] IP usage trouvé:', ipUsage ? `daily_generations=${ipUsage.daily_generations}, last_reset=${ipUsage.last_reset}, today=${today}` : 'aucun');
 
       if (!ipUsage) {
         // Créer l'entrée IP avec 1 génération
@@ -202,7 +206,9 @@ async function checkAndIncrementGenerations(userId: string | null, userEmail: st
       }
 
       // Vérifier la limite (3 par jour)
+      console.log('[GENERATE] Vérification limite: dailyGenerations=', dailyGenerations, 'today=', today, 'last_reset=', ipUsage.last_reset);
       if (dailyGenerations >= 3) {
+        console.log('[GENERATE] Limite atteinte pour IP:', ipAddress);
         return { allowed: false, error: 'Vous avez atteint votre limite de 3 générations gratuites aujourd\'hui. Connectez-vous et passez à Premium pour des générations illimitées !' };
       }
 
@@ -280,14 +286,18 @@ export async function POST(req: Request) {
     }
 
     // Vérifier et incrémenter le compteur AVANT de générer
+    console.log('[GENERATE] Vérification avant génération: userId=', userId, 'userEmail=', userEmail);
     const { allowed, error: limitError } = await checkAndIncrementGenerations(userId, userEmail, req);
     
     if (!allowed) {
+      console.log('[GENERATE] Génération refusée:', limitError);
       return NextResponse.json(
         { error: limitError || 'Limite de générations atteinte' },
         { status: 429 }
       );
     }
+    
+    console.log('[GENERATE] Génération autorisée, procédure...');
 
     // Map the mode from frontend to the format expected by the API
     const modeMap: Record<string, string> = {
