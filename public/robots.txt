@@ -1,0 +1,13 @@
+# robots.txt pour PromptifyBlast
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+
+# Sitemap
+Sitemap: https://promptifyblast.com/sitemap.xml
+
+# Crawl-delay (optionnel, pour éviter de surcharger le serveur)
+Crawl-delay: 1
+
